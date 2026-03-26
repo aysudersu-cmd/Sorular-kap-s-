@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Matematik Oyunu</title>
+
+<style>
+body{
+    margin:0;
+    font-family:Arial;
+    text-align:center;
+    background:linear-gradient(#141e30,#243b55);
+    color:white;
+}
+
+.screen{ display:none; margin-top:40px; }
+
+button{
+    padding:18px;
+    margin:8px;
+    font-size:20px;
+    border:none;
+    border-radius:12px;
+    cursor:pointer;
+}
+
+#player{
+    width:40px;
+    height:40px;
+    position:absolute;
+    border-radius:10px;
+}
+
+.door{
+    font-size:26px;
+    padding:25px;
+    width:40%;
+}
+
+#joystick{
+    position:fixed;
+    bottom:40px;
+    left:40px;
+    width:100px;
+    height:100px;
+    background:rgba(255,255,255,0.1);
+    border-radius:50%;
+}
+
+#stick{
+    width:50px;
+    height:50px;
+    background:white;
+    border-radius:50%;
+    position:absolute;
+    top:25px;
+    left:25px;
+}
+</style>
+</head>
+
+<body>
+
+<!-- MENU -->
+<div id="menu" class="screen" style="display:block;">
+    <h1>🔥 Matematik Oyunu</h1>
+    <h3 id="highScore"></h3>
+    <button onclick="startGame()">▶️ Başla</button>
+    <button onclick="openShop()">🛒 Market</button>
+</div>
+
+<!-- SHOP -->
+<div id="shop" class="screen">
+    <h1>🛒 Market</h1>
+    <h3 id="coinText"></h3>
+
+    <button onclick="buySkin('yellow',0)">Sarı (bedava)</button>
+    <button onclick="buySkin('red',50)">Kırmızı (50 coin)</button>
+    <button onclick="buySkin('lime',100)">Yeşil (100 coin)</button>
+
+    <br><br>
+    <button onclick="backMenu()">⬅ Geri</button>
+</div>
+
+<!-- GAME -->
+<div id="game" class="screen">
+    <h3 id="score"></h3>
+    <h3 id="level"></h3>
+    <h3 id="time"></h3>
+    <h3 id="lives"></h3>
+    <h3 id="coin"></h3>
+
+    <h2 id="question"></h2>
+    <h3 id="result"></h3>
+
+    <button class="door" onclick="secim('left')" id="leftDoor"></button>
+    <button class="door" onclick="secim('right')" id="rightDoor"></button>
+</div>
+
+<!-- GAME OVER -->
+<div id="gameOver" class="screen">
+    <h1>💀 Bitti</h1>
+    <h2 id="finalScore"></h2>
+    <button onclick="startGame()">🔄 Tekrar</button>
+    <button onclick="backMenu()">🏠 Menü</button>
+</div>
+
+<div id="player"></div>
+
+<!-- JOYSTICK -->
+<div id="joystick">
+    <div id="stick"></div>
+</div>
+
+<script>
+
+// ELEMENTLER
+let scoreText = document.getElementById("score");
+let levelText = document.getElementById("level");
+let timeText = document.getElementById("time");
+let livesText = document.getElementById("lives");
+let coinTextGame = document.getElementById("coin");
+let highScoreText = document.getElementById("highScore");
+
+// kayıtlı veriler
+let high = localStorage.getItem("high") || 0;
+let coins = localStorage.getItem("coins") || 0;
+let skin = localStorage.getItem("skin") || "yellow";
+
+// oyun verileri
+let puan, level, lives, time, timer;
+let dogruCevap, dogruSolMu;
+let combo = 0;
+
+// oyuncu
+let player = document.getElementById("player");
+let x=200,y=300;
+
+// ekran değiştir
+function show(id){
+    document.querySelectorAll(".screen").forEach(s=>s.style.display="none");
+    document.getElementById(id).style.display="block";
+}
+
+// başlat
+function startGame(){
+    puan=0; level=1; lives=3; time=30; combo=0;
+
+    show("game");
+    player.style.background = skin;
+
+    clearInterval(timer);
+    timer=setInterval(updateTime,1000);
+
+    yeniSoru();
+    guncelle();
+}
+
+// menü
+function backMenu(){
+    show("menu");
+    highScoreText.innerText="🏆 Rekor: "+high;
+}
+
+// market
+function openShop(){
+    show("shop");
+    coinText.innerText="Coin: "+coins;
+}
+
+// satın alma
+function buySkin(color,price){
+    if(coins>=price){
+        coins-=price;
+        skin=color;
+        localStorage.setItem("coins",coins);
+        localStorage.setItem("skin",skin);
+        alert("Satın alındı!");
+        openShop();
+    }else{
+        alert("Yetersiz coin!");
+    }
+}
+
+// soru
+function yeniSoru(){
+    let max=10+level*5;
+
+    let s1=Math.floor(Math.random()*max)+1;
+    let s2=Math.floor(Math.random()*max)+1;
+
+    let islem=Math.floor(Math.random()*3);
+
+    if(islem==0){ dogruCevap=s1+s2; question.innerText=s1+" + "+s2; }
+    if(islem==1){ dogruCevap=s1-s2; question.innerText=s1+" - "+s2; }
+    if(islem==2){ dogruCevap=s1*s2; question.innerText=s1+" × "+s2; }
+
+    let yanlis;
+    do{
+        yanlis=dogruCevap + Math.floor(Math.random()*15-7);
+    }while(yanlis==dogruCevap);
+
+    dogruSolMu=Math.random()<0.5;
+
+    if(dogruSolMu){
+        leftDoor.innerText=dogruCevap;
+        rightDoor.innerText=yanlis;
+    }else{
+        leftDoor.innerText=yanlis;
+        rightDoor.innerText=dogruCevap;
+    }
+}
+
+// seçim
+function secim(sec){
+    if((sec=="left"&&dogruSolMu)||(sec=="right"&&!dogruSolMu)){
+        combo++;
+        let bonus = combo>=3 ? 20 : 10;
+
+        puan += bonus;
+        coins++;
+
+        result.innerText="🔥 +" + bonus + " (Combo x"+combo+")";
+
+        player.style.transform="scale(1.2)";
+        setTimeout(()=>player.style.transform="scale(1)",200);
+
+    }else{
+        lives--;
+        combo=0;
+        result.innerText="❌";
+    }
+
+    if(puan>=level*80){
+        level++;
+        time+=5;
+    }
+
+    if(lives<=0){ bitir(); return; }
+
+    guncelle();
+    yeniSoru();
+}
+
+// güncelle
+function guncelle(){
+    scoreText.innerText="Puan: "+puan;
+    levelText.innerText="Level: "+level;
+    timeText.innerText="Süre: "+time;
+    coinTextGame.innerText="Coin: "+coins;
+
+    let h="";
+    for(let i=0;i<lives;i++)h+="❤️";
+    livesText.innerText=h;
+}
+
+// süre
+function updateTime(){
+    time--;
+    if(time<=0) bitir();
+    timeText.innerText="Süre: "+time;
+}
+
+// bitiş
+function bitir(){
+    clearInterval(timer);
+
+    if(puan>high){
+        high=puan;
+        localStorage.setItem("high",high);
+    }
+
+    localStorage.setItem("coins",coins);
+
+    finalScore.innerText="Puan: "+puan;
+    show("gameOver");
+}
+
+// 🎮 JOYSTICK
+let stick = document.getElementById("stick");
+let joystick = document.getElementById("joystick");
+let dragging = false;
+
+joystick.addEventListener("touchstart",()=> dragging=true);
+
+joystick.addEventListener("touchend",()=>{
+    dragging=false;
+    stick.style.left="25px";
+    stick.style.top="25px";
+});
+
+joystick.addEventListener("touchmove",(e)=>{
+    if(!dragging) return;
+
+    let rect = joystick.getBoundingClientRect();
+    let touch = e.touches[0];
+
+    let dx = touch.clientX - rect.left - 50;
+    let dy = touch.clientY - rect.top - 50;
+
+    let dist = Math.sqrt(dx*dx+dy*dy);
+    let max = 40;
+
+    if(dist>max){
+        dx = dx/dist*max;
+        dy = dy/dist*max;
+    }
+
+    stick.style.left = (dx+50-25)+"px";
+    stick.style.top  = (dy+50-25)+"px";
+
+    x += dx*0.05;
+    y += dy*0.05;
+
+    if(x<0)x=0;
+    if(y<0)y=0;
+
+    player.style.left=x+"px";
+    player.style.top=y+"px";
+});
+
+backMenu();
+
+</script>
+
+</body>
+</html>
